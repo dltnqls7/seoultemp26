@@ -412,4 +412,79 @@ with tab1:
     m4.metric("최저기온 평균", f'{sel_stats["최저기온평균"]:.2f} ℃')
 
     n1, n2, n3, n4 = st.columns(4)
-    n1.
+    n1.metric("🌙 열대야 일수", f'{sel_stats["열대야일수"]} 일')
+    n2.metric("❄️ 영하 일수", f'{sel_stats["영하일수"]} 일')
+    n3.metric("🥶 한파 일수", f'{sel_stats["한파일수"]} 일')
+    n4.metric("🌗 평균 일교차", f'{sel_stats["일교차평균"]:.2f} ℃')
+
+    st.markdown("#### 일별 최저기온만 보기")
+    st.bar_chart(sel.set_index("날짜")[["최저기온"]], height=260)
+
+# --- 탭2 : 최저기온 전용 랭킹 ---
+with tab2:
+    st.markdown("#### 🧊 가장 추웠던 기간 TOP 10 (최저기온 최솟값 기준)")
+    cold_top = table.sort_values("최저기온", ascending=True).head(10).reset_index(drop=True)
+    cold_top.index = [f"{i+1}위" for i in range(len(cold_top))]
+    cols_show = [c for c in ["연도", "시작", "종료", "최저기온", "최저기온평균",
+                             "영하일수", "한파일수", "관측일수"] if c in cold_top.columns]
+    st.dataframe(cold_top[cols_show], use_container_width=True)
+
+    st.markdown("#### 🥵 밤이 가장 더웠던 기간 TOP 10 (최저기온 최댓값 기준)")
+    warm_top = table.sort_values("최저기온최댓값", ascending=False).head(10).reset_index(drop=True)
+    warm_top.index = [f"{i+1}위" for i in range(len(warm_top))]
+    cols_show2 = [c for c in ["연도", "시작", "종료", "최저기온최댓값", "최저기온평균",
+                              "열대야일수", "관측일수"] if c in warm_top.columns]
+    st.dataframe(warm_top[cols_show2], use_container_width=True)
+
+    st.markdown("#### 📊 최저기온 평균 분포 비교")
+    idx_col = "연도" if "연도" in table.columns else "종료"
+    dist = table.sort_values("최저기온평균", ascending=False).head(15)
+    st.bar_chart(dist.set_index(dist[idx_col].astype(str))[["최저기온평균"]], height=300)
+
+# --- 탭3 ---
+with tab3:
+    st.markdown("#### 평균기온이 가장 높았던 TOP 10")
+    top = table.sort_values("평균기온", ascending=False).head(10).reset_index(drop=True)
+    top.index = [f"{i+1}위" for i in range(len(top))]
+    cols3 = [c for c in ["연도", "시작", "종료", "평균기온", "최고기온",
+                         "최저기온", "최저기온평균", "관측일수"] if c in top.columns]
+    st.dataframe(top[cols3], use_container_width=True)
+
+    idx_col = "연도" if "연도" in top.columns else "종료"
+    st.bar_chart(top.set_index(top[idx_col].astype(str))[["평균기온"]], height=300)
+
+# --- 탭4 ---
+with tab4:
+    sort_key = st.selectbox(
+        "정렬 기준을 고르세요",
+        ["평균기온", "최고기온", "최저기온", "최저기온평균",
+         "최저기온최댓값", "일교차평균", "열대야일수", "영하일수"],
+        index=0,
+    )
+    ascending = sort_key in ["최저기온", "최저기온평균", "영하일수"]
+    full_tbl = table.sort_values(sort_key, ascending=ascending).reset_index(drop=True)
+    full_tbl.insert(0, "순위", range(1, len(full_tbl) + 1))
+
+    if key_col == "연도" and my_key in full_tbl["연도"].values:
+        pos = int(full_tbl.index[full_tbl["연도"] == my_key][0]) + 1
+        st.info(f"👉 선택하신 **{my_key}년** 기록은 '{sort_key}' 기준 **{pos}위**입니다.")
+
+    st.dataframe(full_tbl, use_container_width=True, height=430)
+
+    csv = full_tbl.to_csv(index=False).encode("utf-8-sig")
+    st.download_button("⬇️ 순위표 CSV 내려받기", csv,
+                       file_name="seoul_rank.csv", mime="text/csv")
+
+
+# ------------------------------------------------------------
+# 9. 푸터
+# ------------------------------------------------------------
+st.markdown('<hr class="soft">', unsafe_allow_html=True)
+st.markdown(
+    '<p class="small-note">'
+    '※ 결측이 많은 구간(6·25 전쟁기 등)은 순위 계산에서 자동 제외될 수 있습니다.<br>'
+    '※ 공동 순위는 더 높은 순위로 표기합니다. (예: 값이 같으면 둘 다 3위)<br>'
+    '※ 열대야·한파 기준은 기상청 정의를 참고한 값입니다.'
+    '</p>',
+    unsafe_allow_html=True
+)
